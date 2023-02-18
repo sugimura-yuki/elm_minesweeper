@@ -24,9 +24,9 @@ main =
 -}
 setting : { rows : Int, cols : Int, bombs : Int }
 setting =
-    { rows = 10
-    , cols = 10
-    , bombs = 25
+    { rows = 20
+    , cols = 20
+    , bombs = 50
     }
 
 
@@ -169,17 +169,33 @@ view model =
                     )
                 |> Html.table
                     [ Attrs.style "border-collapse" "collapse"
-                    , Attrs.style "margin" "10px"
                     ]
-    in
-    { title = ""
-    , body =
-        [ -- セル
-          table
-        , Html.hr [] []
 
-        -- フラグ立てた数 / 爆弾数
-        , Html.text (String.fromInt (model.cells |> Dict.filter (\_ a -> a == Flag) |> Dict.size) ++ " / " ++ String.fromInt setting.bombs)
+        bombText =
+            String.fromInt (model.cells |> Dict.filter (\_ a -> a == Flag) |> Dict.size) ++ " / " ++ String.fromInt setting.bombs
+
+        description =
+            Html.dl []
+                [ Html.dt [] [ Html.text "左クリック" ]
+                , Html.dd [] [ Html.text "セルをひらく" ]
+                , Html.dt [] [ Html.text "右クリック" ]
+                , Html.dd [] [ Html.text "旗を立てる" ]
+                , Html.dt [] [ Html.text "フラグ立てた数 / 爆弾数" ]
+                , Html.dd [] [ Html.text bombText ]
+                ]
+    in
+    { title = "マインスイーパー"
+    , body =
+        [ Html.main_ []
+            [ Html.div
+                [ Attrs.style "display" "flex"
+                , Attrs.style "flex-wrap" "wrap"
+                , Attrs.style "gap" "10px"
+                ]
+                [ table
+                , description
+                ]
+            ]
         ]
     }
 

@@ -20,25 +20,33 @@ main =
         }
 
 
-{-| 設定
--}
-setting : { rows : Int, cols : Int, bombs : Int }
-setting =
-    { rows = 20
-    , cols = 20
-    , bombs = 50
-    }
+type alias Setting =
+    { rows : Int, cols : Int, bombs : Int }
 
 
 {-| ランダム位置に爆弾を配置
 -}
-addRandomBomb : Cmd Msg
-addRandomBomb =
-    Random.map2
-        (\i j -> ( i, j ))
-        (Random.int 1 setting.rows)
-        (Random.int 1 setting.cols)
+randomBombs : Setting -> Cmd Msg
+randomBombs setting =
+    let
+        ramdomPos =
+            Random.map2
+                (\i j -> ( i, j ))
+                (Random.int 1 setting.rows)
+                (Random.int 1 setting.cols)
+    in
+    List.range 1 setting.bombs
+        |> List.map (\_ -> ramdomPos)
         |> Random.generate SetBomb
+
+
+{-| モデル
+-}
+type alias Model =
+    { bombs : Bombs
+    , cells : Cells
+    , setting : Setting
+    }
 
 
 {-| セルの状態
@@ -72,14 +80,6 @@ type alias Cells =
     Dict.Dict Pos CellStatus
 
 
-{-| モデル
--}
-type alias Model =
-    { bombs : Bombs
-    , cells : Cells
-    }
-
-
 {-| メッセージ
 
   - Open = 該当位置のセルを開く
@@ -90,19 +90,31 @@ type alias Model =
 type Msg
     = Open Pos
     | SetFlag Pos
-    | SetBomb Pos
+    | SetBomb (List Pos)
 
 
 init : flags -> ( Model, Cmd Msg )
 init _ =
+    reset
+        { rows = 20
+        , cols = 20
+        , bombs = 50
+        }
+
+
+reset : Setting -> ( Model, Cmd Msg )
+reset setting =
     let
         --| モデルの初期状態
         initModel =
-            { bombs = Set.empty, cells = Dict.empty }
+            { bombs = Set.empty
+            , cells = Dict.empty
+            , setting = setting
+            }
 
         --| 初期実行コマンド
         initCmd =
-            addRandomBomb
+            randomBombs initModel.setting
     in
     ( initModel, initCmd )
 
@@ -111,10 +123,10 @@ view : Model -> Browser.Document Msg
 view model =
     let
         table =
-            List.range 1 setting.rows
+            List.range 1 model.setting.rows
                 |> List.map
                     (\r ->
-                        List.range 1 setting.cols
+                        List.range 1 model.setting.cols
                             |> List.map
                                 (\c ->
                                     let
@@ -172,7 +184,7 @@ view model =
                     ]
 
         bombText =
-            String.fromInt (model.cells |> Dict.filter (\_ a -> a == Flag) |> Dict.size) ++ " / " ++ String.fromInt setting.bombs
+            String.fromInt (model.cells |> Dict.filter (\_ a -> a == Flag) |> Dict.size) ++ " / " ++ String.fromInt model.setting.bombs
 
         description =
             Html.dl []
@@ -225,28 +237,15 @@ update msg model =
 
         -- セルを開く
         Open pos ->
-            ( { model | cells = updateCells model.bombs pos model.cells }, Cmd.none )
+            ( openCell pos model, Cmd.none )
 
         -- 爆弾をセット
-        SetBomb pos ->
-            let
-                bombs =
-                    Set.insert pos model.bombs
-
-                cmd =
-                    if Set.size bombs >= setting.bombs then
-                        -- 規定数に到達
-                        Cmd.none
-
-                    else
-                        -- さらに追加
-                        addRandomBomb
-            in
-            ( { model | bombs = bombs }, cmd )
+        SetBomb posList ->
+            ( { model | bombs = List.foldl Set.insert model.bombs posList }, Cmd.none )
 
 
-updateCells : Bombs -> Pos -> Cells -> Cells
-updateCells bombs pos cells =
+openCell : Pos -> Model -> Model
+openCell pos model =
     let
         ( r, c ) =
             pos
@@ -262,35 +261,38 @@ updateCells bombs pos cells =
             , ( r + 1, c )
             , ( r + 1, c + 1 )
             ]
-                |> List.filter (\( a, b ) -> 0 < a && a <= setting.rows && 0 < b && b <= setting.cols)
+                |> List.filter (\( a, b ) -> 0 < a && a <= model.setting.rows && 0 < b && b <= model.setting.cols)
 
         -- 周囲の爆弾数
         countCell =
             arround
-                |> List.filter (\p -> Set.member p bombs)
+                |> List.filter (\p -> Set.member p model.bombs)
                 |> List.length
 
         -- 開いた後のセル状態
-        openCell =
-            if Set.member pos bombs then
+        cellStatus =
+            if Set.member pos model.bombs then
                 Bomb
 
             else
                 Safe countCell
+
+        updatedModel =
+            { model | cells = Dict.insert pos cellStatus model.cells }
     in
-    case Dict.get pos cells of
+    case Dict.get pos model.cells of
         -- まだ空いてない場合
         Nothing ->
             -- まわりの爆弾が０個なら周りもあける
-            if openCell == Safe 0 then
+            if cellStatus == Safe 0 then
                 arround
                     |> List.foldl
-                        (\a b -> updateCells bombs a b)
-                        (Dict.insert pos openCell cells)
+                        (\pos_ model_ -> openCell pos_ model_)
+                        updatedModel
 
             else
-                Dict.insert pos openCell cells
+                updatedModel
 
         -- もう空いてるなら何もしない
         _ ->
-            cells
+            model

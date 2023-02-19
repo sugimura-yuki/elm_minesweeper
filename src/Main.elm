@@ -6,6 +6,8 @@ import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import Json.Decode
+import Minesweeper.Message exposing (Msg(..))
+import Minesweeper.Model exposing (CellStatus(..), Model, Pos, Setting)
 import Random
 import Set
 
@@ -20,10 +22,6 @@ main =
         }
 
 
-type alias Setting =
-    { rows : Int, cols : Int, bombs : Int }
-
-
 {-| ランダム位置に爆弾を配置
 -}
 randomBomb : Setting -> Cmd Msg
@@ -36,62 +34,6 @@ randomBomb setting =
                 (Random.int 1 setting.cols)
     in
     Random.generate SetBomb randomPos
-
-
-{-| モデル
--}
-type alias Model =
-    { bombs : Bombs
-    , cells : Cells
-    , setting : Setting
-    , settingForm : Setting
-    }
-
-
-{-| セルの状態
-
-  - Safe = 爆弾なし(まわりの爆弾の数)
-  - Bomb = 爆弾
-  - Flag = 旗を立てている
-
--}
-type CellStatus
-    = Safe Int
-    | Bomb
-    | Flag
-
-
-{-| 爆弾位置
--}
-type alias Bombs =
-    Set.Set Pos
-
-
-{-| 位置
--}
-type alias Pos =
-    ( Int, Int )
-
-
-{-| 開き済みのセル状態
--}
-type alias Cells =
-    Dict.Dict Pos CellStatus
-
-
-{-| メッセージ
-
-  - Open = 該当位置のセルを開く
-  - SetFlag = 該当位置のセルに旗を立てる
-  - SetBomb = 該当位置に爆弾をセットする
-
--}
-type Msg
-    = Open Pos
-    | SetFlag Pos
-    | SetBomb Pos
-    | InputForm Setting
-    | Reset
 
 
 init : flags -> ( Model, Cmd Msg )

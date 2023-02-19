@@ -46,6 +46,7 @@ type alias Model =
     { bombs : Bombs
     , cells : Cells
     , setting : Setting
+    , settingForm : Setting
     }
 
 
@@ -91,6 +92,8 @@ type Msg
     = Open Pos
     | SetFlag Pos
     | SetBomb Pos
+    | InputForm Setting
+    | Reset
 
 
 init : flags -> ( Model, Cmd Msg )
@@ -110,6 +113,7 @@ reset setting =
             { bombs = Set.empty
             , cells = Dict.empty
             , setting = setting
+            , settingForm = setting
             }
 
         --| 初期実行コマンド
@@ -195,6 +199,43 @@ view model =
                 , Html.dt [] [ Html.text "フラグ立てた数 / 爆弾数" ]
                 , Html.dd [] [ Html.text bombText ]
                 ]
+
+        form =
+            let
+                settingForm =
+                    model.settingForm
+
+                makeInputForm labelText value updateSetting =
+                    Html.label
+                        [ Attrs.style "display" "block"
+                        ]
+                        [ Html.dl []
+                            [ Html.dt [] [ Html.text labelText ]
+                            , Html.dd []
+                                [ Html.input
+                                    [ Attrs.type_ "number"
+                                    , Attrs.value (value |> String.fromInt)
+                                    , Events.onInput
+                                        (\val ->
+                                            case String.toInt val of
+                                                Nothing ->
+                                                    InputForm settingForm
+
+                                                Just n ->
+                                                    InputForm (updateSetting n)
+                                        )
+                                    ]
+                                    []
+                                ]
+                            ]
+                        ]
+            in
+            Html.div []
+                [ makeInputForm "縦のサイズ" settingForm.rows (\n -> { settingForm | rows = n })
+                , makeInputForm "横のサイズ" settingForm.cols (\n -> { settingForm | cols = n })
+                , makeInputForm "爆弾の数" settingForm.bombs (\n -> { settingForm | bombs = n })
+                , Html.button [ Events.onClick Reset ] [ Html.text "再作成" ]
+                ]
     in
     { title = "マインスイーパー"
     , body =
@@ -205,7 +246,10 @@ view model =
                 , Attrs.style "gap" "10px"
                 ]
                 [ table
-                , description
+                , Html.div []
+                    [ description
+                    , form
+                    ]
                 ]
             ]
         ]
@@ -242,6 +286,12 @@ update msg model =
         -- 爆弾をセット
         SetBomb pos ->
             ( { model | bombs = Set.insert pos model.bombs }, Cmd.none )
+
+        InputForm form ->
+            ( { model | settingForm = form }, Cmd.none )
+
+        Reset ->
+            reset model.settingForm
 
 
 openCell : Pos -> Model -> Model
@@ -287,7 +337,7 @@ openCell pos model =
             if cellStatus == Safe 0 then
                 arround
                     |> List.foldl
-                        (\pos_ model_ -> openCell pos_ model_)
+                        openCell
                         updatedModel
 
             else

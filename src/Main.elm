@@ -29,15 +29,15 @@ type alias Setting =
 randomBombs : Setting -> Cmd Msg
 randomBombs setting =
     let
-        ramdomPos =
+        randomPos =
             Random.map2
                 (\i j -> ( i, j ))
                 (Random.int 1 setting.rows)
                 (Random.int 1 setting.cols)
     in
     List.range 1 setting.bombs
-        |> List.map (\_ -> ramdomPos)
-        |> Random.generate SetBomb
+        |> List.map (\_ -> Random.generate SetBomb randomPos)
+        |> Cmd.batch
 
 
 {-| モデル
@@ -90,7 +90,7 @@ type alias Cells =
 type Msg
     = Open Pos
     | SetFlag Pos
-    | SetBomb (List Pos)
+    | SetBomb Pos
 
 
 init : flags -> ( Model, Cmd Msg )
@@ -240,8 +240,8 @@ update msg model =
             ( openCell pos model, Cmd.none )
 
         -- 爆弾をセット
-        SetBomb posList ->
-            ( { model | bombs = List.foldl Set.insert model.bombs posList }, Cmd.none )
+        SetBomb pos ->
+            ( { model | bombs = Set.insert pos model.bombs }, Cmd.none )
 
 
 openCell : Pos -> Model -> Model

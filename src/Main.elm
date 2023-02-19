@@ -124,61 +124,60 @@ reset setting =
 view : Model -> Browser.Document Msg
 view model =
     let
+        cell ( r, c ) =
+            let
+                pos =
+                    ( r, c )
+
+                currentCell =
+                    Dict.get pos model.cells
+
+                cellText =
+                    case currentCell of
+                        Just Flag ->
+                            "🏁"
+
+                        Just Bomb ->
+                            "💣"
+
+                        Just (Safe 0) ->
+                            ""
+
+                        Just (Safe n) ->
+                            String.fromInt n
+
+                        _ ->
+                            ""
+            in
+            Html.td
+                [ Attrs.style "width" "30px"
+                , Attrs.style "height" "30px"
+                , Attrs.style "border" "1px solid black"
+                , Attrs.style "user-select" "none"
+                , Attrs.style "text-align" "center"
+                , Attrs.style "cursor" <|
+                    if currentCell == Nothing then
+                        "pointer"
+
+                    else
+                        "auto"
+                , Attrs.style "background-color" <|
+                    if currentCell == Nothing then
+                        "#aaa"
+
+                    else
+                        "#fff"
+                , Events.preventDefaultOn "contextmenu" (Json.Decode.succeed ( SetFlag pos, True ))
+                , Events.onClick (Open pos)
+                ]
+                [ Html.text cellText ]
+
         table =
             List.range 1 model.setting.rows
                 |> List.map
                     (\r ->
                         List.range 1 model.setting.cols
-                            |> List.map
-                                (\c ->
-                                    let
-                                        pos =
-                                            ( r, c )
-
-                                        currentCell =
-                                            Dict.get pos model.cells
-
-                                        cellText =
-                                            Html.text <|
-                                                case currentCell of
-                                                    Just Flag ->
-                                                        "🏁"
-
-                                                    Just Bomb ->
-                                                        "💣"
-
-                                                    Just (Safe 0) ->
-                                                        ""
-
-                                                    Just (Safe n) ->
-                                                        String.fromInt n
-
-                                                    _ ->
-                                                        ""
-                                    in
-                                    Html.td
-                                        [ Attrs.style "width" "30px"
-                                        , Attrs.style "height" "30px"
-                                        , Attrs.style "border" "1px solid black"
-                                        , Attrs.style "user-select" "none"
-                                        , Attrs.style "text-align" "center"
-                                        , Attrs.style "cursor" <|
-                                            if currentCell == Nothing then
-                                                "pointer"
-
-                                            else
-                                                "auto"
-                                        , Attrs.style "background-color" <|
-                                            if currentCell == Nothing then
-                                                "#aaa"
-
-                                            else
-                                                "#fff"
-                                        , Events.preventDefaultOn "contextmenu" (Json.Decode.succeed ( SetFlag pos, True ))
-                                        , Events.onClick (Open pos)
-                                        ]
-                                        [ cellText ]
-                                )
+                            |> List.map (\c -> cell ( r, c ))
                             |> Html.tr []
                     )
                 |> Html.table

@@ -26,8 +26,8 @@ type alias Setting =
 
 {-| ランダム位置に爆弾を配置
 -}
-randomBombs : Setting -> Cmd Msg
-randomBombs setting =
+randomBomb : Setting -> Cmd Msg
+randomBomb setting =
     let
         randomPos =
             Random.map2
@@ -35,9 +35,7 @@ randomBombs setting =
                 (Random.int 1 setting.rows)
                 (Random.int 1 setting.cols)
     in
-    List.range 1 setting.bombs
-        |> List.map (\_ -> Random.generate SetBomb randomPos)
-        |> Cmd.batch
+    Random.generate SetBomb randomPos
 
 
 {-| モデル
@@ -118,7 +116,7 @@ reset setting =
 
         --| 初期実行コマンド
         initCmd =
-            randomBombs initModel.setting
+            randomBomb initModel.setting
     in
     ( initModel, initCmd )
 
@@ -285,7 +283,18 @@ update msg model =
 
         -- 爆弾をセット
         SetBomb pos ->
-            ( { model | bombs = Set.insert pos model.bombs }, Cmd.none )
+            let
+                bombs =
+                    Set.insert pos model.bombs
+
+                cmd =
+                    if Set.size bombs < model.setting.bombs then
+                        randomBomb model.setting
+
+                    else
+                        Cmd.none
+            in
+            ( { model | bombs = bombs }, cmd )
 
         InputForm form ->
             ( { model | settingForm = form }, Cmd.none )
